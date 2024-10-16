@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract OnlineBetting {
+    address public owner;
+    uint public totalBets;
+    uint public minimumBet;
+    address[] public players;
+    mapping(address => uint) public bets;
+    bool public bettingOpen;
+    address public oracle;
+
+    constructor() {
+        owner = msg.sender;
+        bettingOpen = true;
+        minimumBet = 0.1 ether;
+        oracle = address(0);
+    }
+
+    function placeBet() public payable {
+        require(bettingOpen, "Les paris sont fermes");
+        require(msg.value >= minimumBet, "Le montant du pari est trop bas");
+
+        bets[msg.sender] += msg.value;
+        players.push(msg.sender);
+        totalBets += msg.value;
+    }
+
+    function closeBetting() public onlyOwner {
+        bettingOpen = false;
+    }
+
+    function setOracle(address _oracle) public onlyOwner {
+        oracle = _oracle;
+    }
+
+    function payWinners(address winner) public {
+        require(msg.sender == oracle, "Seul l'oracle peut appeler cette fonction");
+        uint totalWinAmount = address(this).balance; // Correction ici
+        payable(winner).transfer(totalWinAmount);
+        resetBets();
+    }
+
+    function resetBets() internal {
+        for (uint i = 0; i < players.length; i++) {
+            bets[players[i]] = 0;
+        }
+        delete players;
+        totalBets = 0;
+        bettingOpen = true;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Seul le proprietaire peut effectuer cette action");
+        _;
+    }
+}
